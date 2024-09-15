@@ -80,5 +80,5 @@ class Lexer:
                 print(f"Position: {index}, Line number: {lineNum}, Column number: {columnNum}")
                 raise SyntaxError(f"Unexpected character: {text[index]} at line {lineNum}, column {columnNum}")
               
-    return tokens
+        return tokens
 
