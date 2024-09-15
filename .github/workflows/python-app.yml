@@ -37,6 +37,4 @@ jobs:
     - name: Test with pytest
       run: |
         pytest
-    - name: Setup Python
-      uses: actions/setup-python@v5.2.0
             
