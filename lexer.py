@@ -54,7 +54,7 @@ class Lexer:
                     tokenLength = len(tokenText)
 
                     # Adding the new token if it matches
-                    tokens.append((tokenText, tokenType, lineNumber, columnNumber))
+                    tokens.append((tokenText, tokenType, lineNum, columnNum))
 
                     # Updating the index
                     index = match.end(0)
@@ -62,8 +62,8 @@ class Lexer:
                     #Calculating the length of the token
                     length = tokenText.splitlines()
                     if len(length) > 1:
-                        lineNum += len(lines) - 1
-                        columnNum = len(lines[-1]) + 1
+                        lineNum += len(length) - 1
+                        columnNum = len(length[-1]) + 1
                     else:
                         columnNum += tokenLength
                     break
