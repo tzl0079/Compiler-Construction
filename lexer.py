@@ -1,15 +1,25 @@
 # Author: Thomas Lander
-# Date: 09/10/24
+# Date: 09/15/24
 # lexer.py
 
 import re
+
+# Credit to these websites for help: https://regexr.com/, 
 
 # Defining token types
 TOKEN_TYPES = [
     ('KEYWORD', r'\b(int|double|float|char|return|if|else|while|for)\b'),
     ('IDENTIFIER', r'\b[a-zA-z_][a-zA-Z0-9_]*\b'),
-    ('NUMBER', r'\b\d+\b'),
-    ('ARTHIMETIC_OPERATOR', r'[+\-*\/]+'),
+    ('BINARY_LITERAL', r'0[bB][01]+'),
+    ('OCTAL_LITERAL', r'0[o0]?[0-7]+'),
+    ('DECIMAL_LITERAL', r'\b\d+\b'),
+    ('NUMBER', r'\d+'),
+    ('INTEGER_LITERAL', r'\b\d+\b'),
+    ('FLOATING_POINT_LITERAL', r'\b\d+\.\d+\b'),
+    ('STRING_LITERAL', r'"(?:[^"\\]|\\.)*"'),
+    ('CHARACTER_LITERAL', r"'(?:[^'\\]|\\.)'"),
+    ('ARTHIMETIC_OPERATOR', r'[\+\-\*\/]+'),
+    ('ASSIGNMENT_OPERATOR', r'[=]'),
     ('LOGICAL_OPERATOR', r'[\b(?:and|or|not)\b|&&|\|'),
     ('COMPARISON_OPERATOR', r'[<>]=?|==|!='),
     ('PUNCTUATION', r'[.;]'),
@@ -21,10 +31,12 @@ TOKEN_TYPES = [
 class Lexer:
     def __init__(self, rules):
 
-        self.rules = [(re.compile(pattern), token_type) for pattern, token_type in rules]
+        # Applying a set of rules to the lexer
+        self.rules = [(re.compile(pattern), token_type) for pattern, token_type in TOKEN_TYPES]
 
-
+    
     def tokenize(self, text):
+        
         tokens = []
         index = 0
         lineNum = 1
@@ -36,6 +48,7 @@ class Lexer:
             # Checking if the new token matches something in the grammar
             for pattern, tokenType in self.rules:
                 match = pattern.match(text, index)
+                
                 if match:
                     tokenText = match.group(0)
                     tokenLength = len(tokenText)
@@ -50,10 +63,11 @@ class Lexer:
           
             # Catching unsupported Grammar
             if not match:
+                
                 if index < len(text):
                     charError = text[index]
                 else:
-                    # End of File reached
+                    # Else, End of File reached
                     charError = '<EOF>'
 
                 print(f"Position: {index}, Line number: {lineNum}, Column number: {columnNum}")
