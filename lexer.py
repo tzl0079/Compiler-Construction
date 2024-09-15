@@ -6,12 +6,12 @@ import re
 
 # Credit to these websites for help: https://regexr.com/, 
 
-# Defining token types
+# My Grammar:
 TOKEN_TYPES = [
     ('KEYWORD', r'\b(int|double|float|char|return|if|else|while|for)\b'),
     ('IDENTIFIER', r'\b[a-zA-z_][a-zA-Z0-9_]*\b'),
-    ('BINARY_LITERAL', r'0[bB][01]+'),
-    ('OCTAL_LITERAL', r'0[o0]?[0-7]+'),
+    ('BINARY_LITERAL', r'0[0b][01]+'),
+    ('OCTAL_LITERAL', r'0[0o]?[0-7]+'),
     ('DECIMAL_LITERAL', r'\b\d+\b'),
     ('NUMBER', r'\d+'),
     ('INTEGER_LITERAL', r'\b\d+\b'),
@@ -59,16 +59,23 @@ class Lexer:
                     # Updating the index
                     index = match.end(0)
 
-                    # TODO: Calculate the length of the token
+                    #Calculating the length of the token
+                    length = tokenText.splitlines()
+                    if len(length) > 1:
+                        lineNum += len(lines) - 1
+                        columnNum = len(lines[-1]) + 1
+                    else:
+                        columnNum += tokenLength
+                    break
           
             # Catching unsupported Grammar
             if not match:
-                
+
                 if index < len(text):
-                    charError = text[index]
+                    errorChar = text[index]
                 else:
                     # Else, End of File reached
-                    charError = '<EOF>'
+                    errorChar = '<EOF>'
 
                 print(f"Position: {index}, Line number: {lineNum}, Column number: {columnNum}")
                 raise SyntaxError(f"Unexpected character: {text[index]} at line {lineNum}, column {columnNum}")
