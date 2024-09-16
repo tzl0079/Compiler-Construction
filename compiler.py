@@ -1,3 +1,7 @@
+# Author: Thomas Lander
+# Date: 09/15/24
+# compiler.py
+
 import argparse
 from lexer import Lexer, TOKEN_TYPES
 
@@ -52,11 +56,19 @@ def main():
     # Parse the above added arguments
     args = parser.parse_args()
     
-    try:
-        tokens = read_file(args.file)
-        print_tokens(tokens)
-
-    except SyntaxError as e:
-        print(e)
+    # Process each file
+    for file in args.files:
+        file_path, tokens = read_file(file, list_tokens=args.list_tokens)
+        
+        # Print the tokens
+        if tokens is not None:
+            if args.list_tokens:
+                print(f"Tokens from file: {file_path}")
+                print_tokens(tokens)
+            # If flag is not used, just generates
+            else:
+                print(f"Tokens generated from file: {file_path} but not printed. Use -L to list tokens.")
+        else:
+            print(f"Failed to process file: {file_path}")
 
 
