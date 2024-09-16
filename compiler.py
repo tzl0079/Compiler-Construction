@@ -47,7 +47,7 @@ def read_file(file, list_tokens):
 
 def main():
     # Setting up the Argument Parser
-    parser = argparse.ArgumentParser(description='Process a gzip file through the lexer.')
+    parser = argparse.ArgumentParser(description='Process a file through the lexer.')
     # Adding the 'files' argument
     parser.add_argument('files', nargs='+', type=str, help='The file to be processed.')
     # Adding the 'list-tokens' argument
@@ -56,7 +56,7 @@ def main():
     # Parse the above added arguments
     args = parser.parse_args()
     
-    # Process each file
+    # Process each file - ChatGPT helped me write this to deliver before the deadline but nothing is printing in the terminal
     for file in args.files:
         file_path, tokens = read_file(file, list_tokens=args.list_tokens)
         
@@ -72,3 +72,5 @@ def main():
             print(f"Failed to process file: {file_path}")
 
 
+if __name__ == "__compiler__":
+    main()
