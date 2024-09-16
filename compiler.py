@@ -1,6 +1,5 @@
 import argparse
 from lexer import Lexer, TOKEN_TYPES
-import gzip
 
 
 # Printing tokens (I loved the way Tullis's AI written code printed in code review, so I used the same template)
@@ -19,19 +18,8 @@ def read_file(file, list_tokens):
     
     text = ""
 
-    # Validating gzip file is used
-    if file.endswith('.gz'):
-        # Ensuring the gzip file is valid
-        try:
-            with gzip.open(file, 'rt') as f:
-                text = f.read()
-        # If invalid, print an error and return the file
-        except (OSError, gzip.BadGzipFile) as e:
-            print(f"Error:The file '{file} is not a valid gzip file. {str(e)}")
-            return file, None
-        
-    # Reading other files
-    else:
+    # Reading in the file
+    if file.endswith('.c'):
         # Ensuring the file is valid
         try:
             with open(file, 'r') as f:
@@ -63,6 +51,12 @@ def main():
     
     # Parse the above added arguments
     args = parser.parse_args()
+    
+    try:
+        tokens = read_file(args.file)
+        print_tokens(tokens)
 
-    read_file(args.file)
+    except SyntaxError as e:
+        print(e)
+
 
