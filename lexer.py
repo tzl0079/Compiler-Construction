@@ -9,8 +9,8 @@ import re
 # My Grammar:
 TOKEN_TYPES = [
     (r'\b(auto|break|case|char|const|continue|default|do|double|else|enum|extern|float|for| \
-    goto|if|inline|int|long|register|restrict|return|short|signed|sizeof|static|struct|switch|typedef|union| \
-    unsigned|void|volatile|while)\b', 'KEYWORD'),
+     goto|if|inline|int|long|main|register|restrict|return|short|signed|sizeof|static|struct|switch|typedef|union| \
+     unsigned|void|volatile|while)\b', 'KEYWORD'),
     (r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', 'IDENTIFIER'),
     (r'0[0b][01]+', 'BINARY_LITERAL'),
     (r'0[0o]?[0-7]+', 'OCTAL_LITERAL'),
@@ -24,7 +24,7 @@ TOKEN_TYPES = [
     (r'[=]', 'ASSIGNMENT_OPERATOR'),
     (r'\b(?:and|or|not|&&|\|)\b', 'LOGICAL_OPERATOR'),
     (r'[<>]=?|==|!=', 'COMPARISON_OPERATOR'),
-    (r'[.;]', 'PUNCTUATION'),
+    (r'[.;(){}]', 'PUNCTUATION'),
     (r'\s+', 'WHITESPACE'),
     (r'//[^\n]*', 'SINGLE_LINE_COMMENT'),
     (r'/\*[\s\S]*?\*/', 'MULTI_LINE_COMMENT'),
@@ -56,12 +56,12 @@ class Lexer:
                     tokenLength = len(tokenText)
                     
                     # Ignoring Whitespace
-                    if tokenType == 'WHITESPACE':
-                        index += tokenLength
-                        if '\n' in tokenText:
-                            lineNum += tokenText.count('\n')
-                            columnNum = len(tokenText.splitlines()[-1]) + 1
-                        continue
+                    #if tokenType == 'WHITESPACE':
+                    #    index += tokenLength
+                    #    if '\n' in tokenText:
+                    #        lineNum += tokenText.count('\n')
+                    #        columnNum = len(tokenText.splitlines()[-1]) + 1
+                    #    continue
 
                     # Adding the new token if it matches
                     tokens.append((tokenText, tokenType, lineNum, columnNum))
