@@ -18,47 +18,32 @@ def print_tokens(tokens):
         print(f"{repr(tokenText):<20} {tokenType:<20} {line:<5} {column:<5}")
 
 
-def read_file(file, list_tokens):
+def read_file(file_path):
     
-    text = ""
-
     # Reading in the file
-    if file.endswith('.c'):
-        # Ensuring the file is valid
-        try:
-            with open(file, 'r') as f:
-                text = f.read()
-        # If invalid, print an error and return the file
-        except OSError as e:
-            print(f"Error: Could not open file '{file}'. {str(e)}")
-            return file, None
+    with open(file_path, 'r') as file:
+        content = file.read()
 
-    # Sending the text through lexer.py and reading tokens
     lexer = Lexer(TOKEN_TYPES)
-    tokens = lexer.tokenize(text)
+    tokens = lexer.tokenize(content)
 
-    # Returns the file and tokens if valid
-    if list_tokens:
-        return file, tokens
-    
-    # Just returns the file if not
-    return file, None
+    return tokens
 
 
 def main():
     # Setting up the Argument Parser
     parser = argparse.ArgumentParser(description='Process a file through the lexer.')
-    # Adding the 'files' argument
-    parser.add_argument('files', nargs='+', type=str, help='The file to be processed.')
+    # Adding the 'file' argument (single file)
+    parser.add_argument('file', type=str, help='The file to be processed.')
     # Adding the 'list-tokens' argument
     parser.add_argument('-L', '--list-tokens', action='store_true', help='Print the list of tokens.')
     
     # Parse the above added arguments
     args = parser.parse_args()
     
-    # Process each file - ChatGPT helped me write this to deliver before the deadline but nothing is printing in the terminal
-    for file in args.files:
-        file_path, tokens = read_file(file, list_tokens=args.list_tokens)
+    file = args.file
+    try:
+        file_path, tokens = read_file(file)
         
         # Print the tokens
         if tokens is not None:
@@ -70,7 +55,13 @@ def main():
                 print(f"Tokens generated from file: {file_path} but not printed. Use -L to list tokens.")
         else:
             print(f"Failed to process file: {file_path}")
+    except SyntaxError as e:
+        print(f"Syntax error in file '{file}': {e}")
+    except FileNotFoundError:
+        print(f"Error: File '{file}' not found.")
+    except Exception as e:
+        print(f"An error occurred while processing '{file}': {e}")
 
 
-if __name__ == "__compiler__":
+if __name__ == "__main__":
     main()

@@ -8,26 +8,26 @@ import re
 
 # My Grammar:
 TOKEN_TYPES = [
-    ('KEYWORD', r'\b(auto|break|case|char|const|continue|default|do|double|else|enum|extern|float|for| \
+    (r'\b(auto|break|case|char|const|continue|default|do|double|else|enum|extern|float|for| \
     goto|if|inline|int|long|register|restrict|return|short|signed|sizeof|static|struct|switch|typedef|union| \
-    unsigned|void|volatile|while)\b'),
-    ('IDENTIFIER', r'\b[a-zA-z_][a-zA-Z0-9_]*\b'),
-    ('BINARY_LITERAL', r'0[0b][01]+'),
-    ('OCTAL_LITERAL', r'0[0o]?[0-7]+'),
-    ('DECIMAL_LITERAL', r'\b\d+\b'),
-    ('NUMBER', r'\d+'),
-    ('INTEGER_LITERAL', r'\b\d+\b'),
-    ('FLOATING_POINT_LITERAL', r'\b\d+\.\d+\b'),
-    ('STRING_LITERAL', r'"(?:[^"\\]|\\.)*"'),
-    ('CHARACTER_LITERAL', r"'(?:[^'\\]|\\.)'"),
-    ('ARTHIMETIC_OPERATOR', r'[\+\-\*\/]+'),
-    ('ASSIGNMENT_OPERATOR', r'[=]'),
-    ('LOGICAL_OPERATOR', r'[\b(?:and|or|not)\b|&&|\|'),
-    ('COMPARISON_OPERATOR', r'[<>]=?|==|!='),
-    ('PUNCTUATION', r'[.;]'),
-    ('WHITESPACE', r'\s+'),
-    ('SINGLE_LINE_COMMENT', r'//[^\n]*'),
-    ('MULTI_LINE_COMMENT', r'/\*[\s\S]*?\*/'),
+    unsigned|void|volatile|while)\b', 'KEYWORD'),
+    (r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', 'IDENTIFIER'),
+    (r'0[0b][01]+', 'BINARY_LITERAL'),
+    (r'0[0o]?[0-7]+', 'OCTAL_LITERAL'),
+    (r'\b\d+\b', 'DECIMAL_LITERAL'),
+    (r'\d+', 'NUMBER'),
+    (r'\b\d+\b', 'INTEGER_LITERAL'),
+    (r'\b\d+\.\d+\b', 'FLOATING_POINT_LITERAL'),
+    (r'"(?:[^"\\]|\\.)*"', 'STRING_LITERAL'),
+    (r"'(?:[^'\\]|\\.)'", 'CHARACTER_LITERAL'),
+    (r'[\+\-\*\/]+', 'ARTHIMETIC_OPERATOR'),
+    (r'[=]', 'ASSIGNMENT_OPERATOR'),
+    (r'\b(?:and|or|not|&&|\|)\b', 'LOGICAL_OPERATOR'),
+    (r'[<>]=?|==|!=', 'COMPARISON_OPERATOR'),
+    (r'[.;]', 'PUNCTUATION'),
+    (r'\s+', 'WHITESPACE'),
+    (r'//[^\n]*', 'SINGLE_LINE_COMMENT'),
+    (r'/\*[\s\S]*?\*/', 'MULTI_LINE_COMMENT'),
 ]
 
 class Lexer:
@@ -54,14 +54,20 @@ class Lexer:
                 if match:
                     tokenText = match.group(0)
                     tokenLength = len(tokenText)
+                    
+                    # Ignoring Whitespace
+                    if tokenType == 'WHITESPACE':
+                        index += tokenLength
+                        if '\n' in tokenText:
+                            lineNum += tokenText.count('\n')
+                            columnNum = len(tokenText.splitlines()[-1]) + 1
+                        continue
 
                     # Adding the new token if it matches
                     tokens.append((tokenText, tokenType, lineNum, columnNum))
 
-                    # Updating the index
+                    # Updating index, lineNum, and columnNum
                     index = match.end(0)
-
-                    #Calculating the length of the token
                     length = tokenText.splitlines()
                     if len(length) > 1:
                         lineNum += len(length) - 1
@@ -83,4 +89,3 @@ class Lexer:
                 raise SyntaxError(f"Unexpected character: {text[index]} at line {lineNum}, column {columnNum}")
               
         return tokens
-
