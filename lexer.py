@@ -9,8 +9,8 @@ import re
 # My Grammar:
 TOKEN_TYPES = [
     (r'\b(auto|break|case|char|const|continue|default|do|double|else|enum|extern|float|for| \
-     goto|if|inline|int|long|main|register|restrict|return|short|signed|sizeof|static|struct|switch|typedef|union| \
-     unsigned|void|volatile|while)\b', 'KEYWORD'),
+     goto|if|inline|int|long|main|register|restrict|return|short|signed|sizeof|static|struct| \
+     switch|typedef|union|unsigned|void|volatile|while)\b', 'KEYWORD'),
     (r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', 'IDENTIFIER'),
     (r'0[0b][01]+', 'BINARY_LITERAL'),
     (r'0[0o]?[0-7]+', 'OCTAL_LITERAL'),
