@@ -15,8 +15,6 @@ TOKEN_TYPES = [
     (r'0[0b][01]+', 'BINARY_LITERAL'),
     (r'0[0o]?[0-7]+', 'OCTAL_LITERAL'),
     (r'0[xX][0-9a-fA-F]+', 'HEX_LITERAL'),
-    (r'\b\d+\b', 'DECIMAL_LITERAL'),
-    (r'\d+', 'NUMBER'),
     (r'\b\d+\b', 'INTEGER_LITERAL'),
     (r'\b\d+\.\d+\b', 'FLOATING_POINT_LITERAL'),
     (r'"(?:[^"\\]|\\.)*"', 'STRING_LITERAL'),
