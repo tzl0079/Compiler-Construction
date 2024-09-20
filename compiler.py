@@ -43,18 +43,18 @@ def main():
     
     file = args.file
     try:
-        file_path, tokens = read_file(file)
+        tokens = read_file(file)
         
         # Print the tokens
         if tokens is not None:
             if args.list_tokens:
-                print(f"Tokens from file: {file_path}")
+                print(f"Tokens from file: {file}")
                 print_tokens(tokens)
             # If flag is not used, just generates
             else:
-                print(f"Tokens generated from file: {file_path} but not printed. Use -L to list tokens.")
+                print(f"Tokens generated from file: {file} but not printed. Use -L to list tokens.")
         else:
-            print(f"Failed to process file: {file_path}")
+            print(f"Failed to process file: {file}")
     except SyntaxError as e:
         print(f"Syntax error in file '{file}': {e}")
     except FileNotFoundError:

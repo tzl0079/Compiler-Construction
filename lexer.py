@@ -55,13 +55,13 @@ class Lexer:
                     tokenText = match.group(0)
                     tokenLength = len(tokenText)
                     
-                    # Ignoring Whitespace
-                    #if tokenType == 'WHITESPACE':
-                    #    index += tokenLength
-                    #    if '\n' in tokenText:
-                    #        lineNum += tokenText.count('\n')
-                    #        columnNum = len(tokenText.splitlines()[-1]) + 1
-                    #    continue
+                    # Ignoring Whitespace in future, printing for now just to see
+                    # if tokenType == 'WHITESPACE':
+                    #     index += tokenLength
+                    #     if '\n' in tokenText:
+                    #         lineNum += tokenText.count('\n')
+                    #         columnNum = len(tokenText.splitlines()[-1]) + 1
+                    #     continue
 
                     # Adding the new token if it matches
                     tokens.append((tokenText, tokenType, lineNum, columnNum))
