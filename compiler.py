@@ -4,6 +4,7 @@
 
 import argparse
 from lexer import Lexer, TOKEN_TYPES
+from my_parser import Parser
 
 
 # Printing tokens (I loved the way Tullis's AI written code printed in code review, so I used the same template)
@@ -33,9 +34,7 @@ def read_file(file_path):
 def main():
     # Setting up the Argument Parser
     parser = argparse.ArgumentParser(description='Process a file through the lexer.')
-    # Adding the 'file' argument (single file)
     parser.add_argument('file', type=str, help='The file to be processed.')
-    # Adding the 'list-tokens' argument
     parser.add_argument('-L', '--list-tokens', action='store_true', help='Print the list of tokens.')
     
     # Parse the above added arguments
@@ -53,6 +52,11 @@ def main():
             # If flag is not used, just generates
             else:
                 print(f"Tokens generated from file: {file} but not printed. Use -L to list tokens.")
+
+            # Parse the tokens to generate an AST
+            parser = Parser(tokens)  # Initialize the parser with tokens
+            ast = parser.parse()  # Generate the AST
+            
         else:
             print(f"Failed to process file: {file}")
     except SyntaxError as e:
