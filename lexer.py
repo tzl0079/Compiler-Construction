@@ -9,13 +9,13 @@ import re
 # My Grammar:
 TOKEN_TYPES = [
     (r'\b(auto|break|case|char|const|continue|default|do|double|else|enum|extern|float|for| \
-     goto|if|inline|int|main|long|register|restrict|return|short|signed|sizeof|static|struct| \
+     goto|if|inline|int|long|register|restrict|return|short|signed|sizeof|static|struct| \
      switch|typedef|union|unsigned|void|volatile|while)\b', 'KEYWORD'),
-    (r'\b(main[a-zA-Z_][a-zA-Z0-9_]*)\b', 'IDENTIFIER'),
+    (r'\b([a-zA-Z_][a-zA-Z0-9_]*)\b', 'IDENTIFIER'),
     (r'0b[01]+', 'BINARY_LITERAL'),
     (r'0o?[0-7]+', 'OCTAL_LITERAL'),
     (r'0x[0-9a-fA-F]+', 'HEX_LITERAL'),
-    (r'\b\d+\.\d+\b', 'FLOATING_POINT_LITERAL'),
+    (r'\b\d+\.\d+\b', 'FLOATING_POINT_LIT'),
     (r'\b\d+\b', 'INTEGER_LITERAL'),
     (r'"(?:[^"\\]|\\.)*"', 'STRING_LITERAL'),
     (r"'(?:[^'\\]|\\.)'", 'CHARACTER_LITERAL'),

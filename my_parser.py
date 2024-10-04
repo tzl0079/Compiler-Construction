@@ -36,39 +36,42 @@ class Parser:
 
     # Main parsing function
     def parse(self):
-        # Starting Symbol Table in order to parse
         self.symbol_table.enter_scope()
+        ast = []
 
         # Start parsing (e.g., declarations, functions, etc.)
         while self.current_token is not None:
-            if self.current_token is not None and self.current_token[1] == 'KEYWORD':
-                self.parse_function_definition()
+            if self.current_token and self.current_token[1] == 'KEYWORD':
+                ast.append(self.parse_function_definition())
             else:
-                self.parse_statement()
+                ast.append(self.parse_statement())
 
         self.symbol_table.exit_scope()
+    
+        return ast
 
     # Function Definitions Parsing
     def parse_function_definition(self):
-        self.expected_type('KEYWORD')  
-        return_type = self.current_token[0]  
-
-        # Expect function identifier (function name can be 'main')
-        if self.current_token[0] == 'main':
-            function_name = 'main'
+        if self.current_token[1] == 'KEYWORD': 
+            return_type = self.current_token[0]
+            self.next()
         else:
-            self.expected_type('IDENTIFIER')
-            function_name = self.current_token[0]
+            raise SyntaxError(f"Expected return type (KEYWORD), but got {self.current_token[1]}")
 
-        self.next()
+        function_name = self.current_token[0]
+        self.expected_type('IDENTIFIER') 
 
-        # Parsing Parameters
+        # Add to the Symbol Table and enter a new scope
+        self.symbol_table.define_function(function_name, return_type)
+        self.symbol_table.enter_scope()
+
+        # Parsing Parameters within parentheses
         self.expected_type('PUNCTUATION', '(')
         parameters = self.parse_parameters()
         self.expected_type('PUNCTUATION', ')')
 
-        # Parse function body
         body = self.parse_block()
+        self.symbol_table.exit_scope()
 
         return ('FunctionDefinition', return_type, function_name, parameters, body)
     
@@ -159,10 +162,14 @@ class Parser:
         self.next()
         self.expected_type('PUNCTUATION', '(')
 
-        condition = self.parse_expression()  # Parse the condition
-
+        condition = self.parse_expression()
         self.expected_type('PUNCTUATION', ')') 
-        body = self.parse_block()
+        
+        # Check if the body/statements is longer than one line
+        if self.current_token and self.current_token[0] == '{':
+            body = self.parse_block() 
+        else:
+            body = self.parse_statement()
 
         return ('WhileLoop', condition, body)
     
@@ -173,24 +180,28 @@ class Parser:
 
         # Parsing the initialization statement
         initialization = None
-        if self.current_token[1] != 'PUNCTUATION' or self.current_token[0] != ';':
-            initialization = self.parse_statement()
-        self.expected_type('PUNCTUATION', ';') 
+        if self.current_token[0] != ';':  
+            initialization = self.parse_expression()
+        self.expected_type('PUNCTUATION', ';')
 
         # Parsing the conditional expression
         condition = None
-        if self.current_token[1] != 'PUNCTUATION' or self.current_token[0] != ';':
+        if self.current_token[0] != ';':
             condition = self.parse_expression()
         self.expected_type('PUNCTUATION', ';')
 
         # Parsing the update expression
         update = None
-        if self.current_token[1] != 'PUNCTUATION' or self.current_token[0] != ')':
+        if self.current_token != ')':
             update = self.parse_expression()
 
         self.expected_type('PUNCTUATION', ')')
 
-        body = self.parse_block()
+        # Checking if the body/statements is longer than 1 line
+        if self.current_token and self.current_token[0] == '{':
+            body = self.parse_block()  # Parse block if it's a compound statement
+        else:
+            body = self.parse_statement()
 
         return ('ForLoop', initialization, condition, update, body)
     
@@ -208,13 +219,18 @@ class Parser:
     
     # Helper function for if statements and loops to parse Block Statements
     def parse_block(self):
+        # New symbol table scope as we are entering a block
+        self.symbol_table.enter_scope()
         self.expected_type('PUNCTUATION', '{')
         statements = []
 
         while self.current_token and self.current_token[0] != '}':
-            statements.append(self.parse_statement())
+            statement = self.parse_statement()
+            if statement is not None:
+                 statements.append(statement)  
 
         self.expected_type('PUNCTUATION', '}')
+        self.symbol_table.exit_scope()
 
         return ('Block', statements)
 
@@ -224,7 +240,6 @@ class Parser:
         var_type = self.current_token[0]
         self.next()
         
-        # Takes in Idenfitifers, error elsewise 
         if self.current_token[1] == 'IDENTIFIER':
             var_name = self.current_token[0]
             # Adding to the Symbol Table
@@ -234,12 +249,18 @@ class Parser:
             raise SyntaxError(f"Expected IDENTIFIER, but got {self.current_token}")
 
         # Checking for additional assignments
+        initialization = None
         if self.current_token[1] == 'ASSIGNMENT_OPERATOR':
             # Skipping "=" and then parsing
             self.next()
-            self.parse_expression()
+            initialization = self.parse_expression()
 
         self.expected_type('PUNCTUATION', ';')
+
+        if initialization is not None:
+            return ('Declaration', var_type, var_name, initialization)
+        else:
+            return ('Declaration', var_type, var_name)
 
     # Assignment Parsing 
     def parse_assignment(self):
@@ -278,15 +299,27 @@ class Parser:
         if token[1] == 'INTEGER_LITERAL':
             self.next()
             return ('IntegerLiteral', token[0])
-        elif token[1] == 'FLOATING_POINT_LITERAL':
+        elif token[1] == 'FLOATING_POINT_LIT':
             self.next()
-            return ('FloatingPointLiteral')
+            return ('FloatingPointLiteral', float(token[0]))
+        elif token[1] == 'HEX_LITERAL':  # Handle hex literals
+            self.next()
+            return ('HexLiteral', token[0])
+        elif token[1] == 'BINARY_LITERAL':  # Handle binary literals
+            self.next()
+            return ('BinaryLiteral', token[0])
+        elif token[1] == 'OCTAL_LITERAL':  # Handle octal literals
+            self.next()
+            return ('OctalLiteral', token[0])
         elif token[1] == 'IDENTIFIER':
             self.next()
             if self.symbol_table.lookup(token[0]):
                 return ('Variable', token[0])
             else:
                 raise NameError(f"Variable '{token[0]}' not declared.")
+        elif token[1] == 'STRING_LITERAL':  # New case for string literals
+            self.next()
+            return ('StringLiteral', token[0])
         elif token[0] == '(':
             self.next()
             # Recursively call parse_expression to handle the expression within 
@@ -326,11 +359,14 @@ class SymbolTable:
     def enter_scope(self):
         self.scope_level += 1
         self.symbols.append({})
+        print(f"Entered scope level {self.scope_level}")
     
     # Function to exit the current scope
     def exit_scope(self):
-        self.symbols.pop()
-        self.scope_level -= 1
+        if self.scope_level > 0:
+            local_vars = self.symbols.pop()  # Get local vars before popping
+            print(f"Exited scope level {self.scope_level}, local variables: {local_vars}")
+            self.scope_level -= 1
     
     # Declaration function
     def declare(self, name, var_type):
@@ -341,9 +377,8 @@ class SymbolTable:
             raise SyntaxError(f"Variable '{name}' already declared in the current scope.")
         
         # Store variable or function type
-        if var_type in ['int', 'float', 'void']:
-            self.function_types[name] = var_type  
         self.symbols[self.scope_level][name] = var_type
+        print(f"Declared {name} of type {var_type} in scope level {self.scope_level}")
 
     # Defining Functions
     def define_function(self, name, return_type):
@@ -372,4 +407,4 @@ class SymbolTable:
     # Function specifying return type
     def get_function_return_type(self, function_name):
         return self.function_types.get(function_name, None)
-
+    
