@@ -19,7 +19,7 @@ def print_tokens(tokens):
         print(f"{repr(tokenText):<20} {tokenType:<20} {line:<5} {column:<5}")
 
 
-# Printing out the AST, AI helped me write so as to make it prettier
+# Printing out the AST
 def print_ast(node, indent=0):
     spacing = '  ' * indent
 
@@ -34,6 +34,7 @@ def print_ast(node, indent=0):
         print(f"{spacing}{node}")
 
 
+# Printing out the Symbol Table, having some troubles with it though
 def print_symboltable(symbol_table):
     # Print Global Scope
     print("Global Scope (function declarations):")
