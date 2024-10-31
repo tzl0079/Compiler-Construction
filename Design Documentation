@@ -1,0 +1,29 @@
+# Author: Thomas Lander
+# Date: 10/30/24
+# Design Documentation
+
+My simple C compiler works off of the following grammar:
+        Program -> Statement
+        Statement -> Declaration | Assignment | Expression | If_Stmnt | For_Loop | While_Loop | 
+        Declaration -> ID 
+        Assignment -> ID "=" Expression
+        Expression -> Expression OP Term | Term
+        If_Stmnt -> "if" "(" Expression ")" "{" Statement* "}" | "if" "(" Expression ")" "{" Statement* "}" "else" "{" Statement "}"
+        While_Loop -> "while" "(" Expression ")" "{" Block "}"
+        For_Loop -> "for" "(" Expression ";" Expression ";" Expression ")" "{" Statement "}"
+        Term -> Num | String | ID | Expression
+        OP -> "+" | "-" | "*" | "/" | "==" | "!=" | "<" | ">" | "<=" | ">="
+
+It can parse the following into ASTs and Symbol Tables:
+   1) Functions
+   2) Function calls
+   3) Declarations
+   4) Assignments
+   5) Statements
+   6) Expressions (can handle int, float, hex, binary, octal, and string variables)
+   7) If Statements
+   8) While Loops
+   9) For Loops
+  10) Return Statements
+
+My compiler then converts the AST into 3-Addres

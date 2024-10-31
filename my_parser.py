@@ -1,10 +1,9 @@
 # Author: Thomas Lander
-# Date: 10/04/24
+# Date: 10/31/24
 # my_parser.py 
 
 class Parser: 
 
-    # Initilization Function
     def __init__(self, tokens):
         self.tokens = tokens
         self.pos = 0
@@ -23,12 +22,12 @@ class Parser:
     
 
     # Function to double check that the token type is correct
-    # AI helped me here with condensing code in a more pythonic way
+    # ChatGPT helped me here with condensing code in a more pythonic way
     def expected_type(self, token_type, token_value = None):
         # Checking if there is a token remaining
         if self.current_token is None:
             raise SyntaxError(f"Unexpected end of input, expected {token_type}")
-        # Ensuring the right token is in the right spot
+        # Ensuring the token is correctly identified
         if self.current_token[1] != token_type or (token_value and self.current_token[0] != token_value):
             expected_value = token_value if token_value else token_type
             actual_value = repr(self.current_token[0]) if self.current_token else 'None'
@@ -42,7 +41,7 @@ class Parser:
         self.symbol_table.enter_scope()
         ast = []
 
-        # Start parsing (e.g., declarations, functions, etc.)
+        # Start parsing - declarations, functions, etc.
         while self.current_token is not None:
             if self.current_token and self.current_token[1] == 'KEYWORD':
                 ast.append(self.parse_function_definition())
@@ -74,24 +73,23 @@ class Parser:
         parameters = self.parse_parameters()
         self.expected_type('PUNCTUATION', ')')
 
-        body = self.parse_block()
+        body = self.parse_block(enter_scope = False)
         self.symbol_table.exit_scope()
 
         return ('FunctionDefinition', return_type, function_name, parameters, body)
     
 
-    # Helper Function for Function Definition Parsing - 
-    # parsing potential parameters in a function definition
+    # Helper Function for Function Definition Parsing  
     def parse_parameters(self):
         parameters = []
 
-        # Check if there are parameters
+        # While there are parameters, identify what they are
         while self.current_token and self.current_token[1] in ['KEYWORD', 'IDENTIFIER']:
             param_type = self.current_token[0]
             self.expected_type('KEYWORD') 
 
-            self.expected_type('IDENTIFIER')
             param_name = self.current_token[0]
+            self.expected_type('IDENTIFIER')
 
             parameters.append((param_type, param_name))
 
@@ -110,6 +108,7 @@ class Parser:
 
         arguments = []
 
+        # Parsing everything between paranthesis 
         if self.current_token and self.current_token[0] != ')':
             while True:
                 arguments.append(self.parse_expression())
@@ -121,7 +120,7 @@ class Parser:
         return ('FunctionCall', function_name, arguments)
 
 
-     # Declaration Parsing
+     # Declaration Parsing - "int x"
     def parse_declaration(self):
         # Obtaining variable type
         var_type = self.current_token[0]
@@ -130,27 +129,24 @@ class Parser:
         if self.current_token[1] == 'IDENTIFIER':
             var_name = self.current_token[0]
             # Adding to the Symbol Table
-            self.symbol_table.declare(var_name, var_type)
+            self.symbol_table.declare_variable(var_name, var_type)
             self.next()
         else:
             raise SyntaxError(f"Expected IDENTIFIER, but got {self.current_token}")
 
-        # Checking for additional assignments
-        initialization = None
+        # Double checking for additional assignments 
+        assignment = None
         if self.current_token[1] == 'ASSIGNMENT_OPERATOR':
             # Skipping "=" and then parsing
             self.next()
-            initialization = self.parse_expression()
+            assignment = self.parse_expression()
 
         self.expected_type('PUNCTUATION', ';')
 
-        if initialization is not None:
-            return ('Declaration', var_type, var_name, initialization)
-        else:
-            return ('Declaration', var_type, var_name)
+        # Returning the declaration depending on if a value was assigned
+        return ('Declaration', var_type, var_name, assignment) if assignment else ('Declaration', var_type, var_name)
 
-
-    # Assignment Parsing 
+    # Assignment Parsing - "x = 10"
     def parse_assignment(self):
         var_name = self.current_token[0]
         
@@ -161,17 +157,14 @@ class Parser:
             raise NameError(f"Variable '{var_name}' not declared.")
         
         self.expected_type('ASSIGNMENT_OPERATOR', '=')
-        self.parse_expression()
+        expression = self.parse_expression()
         self.expected_type('PUNCTUATION', ';')
+
+        return ('Assignment', var_name, expression)
 
 
     # Statement Parsing
     def parse_statement(self):
-        # Skipping Comments
-        if self.current_token[1] in ['SINGLE_LINE_COMMENT', 'MULTI_LINE_COMMENT']:
-            self.next()  
-            return
-        
         # Takes in Keywords and Identifiers, error elsewise
         if self.current_token[1] == 'KEYWORD':
             if self.current_token[0] == 'if':
@@ -193,10 +186,9 @@ class Parser:
     # If-Statement Parsing: if (condition) {statements} 
     def parse_if_statement(self):
         self.next()
+
         self.expected_type('PUNCTUATION', '(')
-
         condition = self.parse_expression() 
-
         self.expected_type('PUNCTUATION', ')') 
 
         block = self.parse_block()
@@ -211,6 +203,7 @@ class Parser:
     
 
     # While-loop Parsing: while (condition) {statements}
+    # ChatGPT helped me debug the random NONE node added
     def parse_while_loop(self):
         self.next()
         self.expected_type('PUNCTUATION', '(')
@@ -222,44 +215,48 @@ class Parser:
         if self.current_token and self.current_token[0] == '{':
             body = self.parse_block() 
         else:
-            body = self.parse_statement()
+            single_statement = self.parse_statement()
+            body = [single_statement] if single_statement else []
 
         return ('WhileLoop', condition, body)
     
 
     # For-loop Parsing: for (initilization; condition; update) {statements})
     def parse_for_loop(self):
-        self.next()
+        self.next()  # Move past 'for'
         self.expected_type('PUNCTUATION', '(')
 
-        # Parsing the initialization statement
+        # Initialization Declaration
         initialization = None
-        if self.current_token[0] != ';':  
-            initialization = self.parse_expression()
-        self.expected_type('PUNCTUATION', ';')
+        if self.current_token and self.current_token[0] != ';':
+            print(self.current_token)
+            initialization = self.parse_statement() 
+            print(self.current_token)
+            self.expected_type('PUNCTUATION', ';')
 
-        # Parsing the conditional expression
+        # Conditional Expression
         condition = None
-        if self.current_token[0] != ';':
+        if self.current_token and self.current_token[0] != ';':
             condition = self.parse_expression()
         self.expected_type('PUNCTUATION', ';')
 
-        # Parsing the update expression
+        # Update Expression
         update = None
-        if self.current_token != ')':
+        if self.current_token and self.current_token[0] != ')':
             update = self.parse_expression()
 
         self.expected_type('PUNCTUATION', ')')
 
-        # Checking if the body/statements is longer than 1 line
+        # Checking if it has a body or just a statement
         if self.current_token and self.current_token[0] == '{':
-            body = self.parse_block()  # Parse block if it exists
+            body = self.parse_block()
         else:
             body = self.parse_statement()
 
         return ('ForLoop', initialization, condition, update, body)
-    
 
+    
+    # Parsing return statements
     def parse_return_statement(self):
         self.next()
     
@@ -274,9 +271,11 @@ class Parser:
     
 
     # Helper function to parse through Block Statements
-    def parse_block(self):
-        # New symbol table scope as we are entering a block
-        self.symbol_table.enter_scope()
+    def parse_block(self, enter_scope = True):
+        # Enter a new scope, if needed
+        if enter_scope:
+            self.symbol_table.enter_scope()
+
         self.expected_type('PUNCTUATION', '{')
         statements = []
 
@@ -286,14 +285,16 @@ class Parser:
                  statements.append(statement)  
 
         self.expected_type('PUNCTUATION', '}')
-        self.symbol_table.exit_scope()
+        # Exit the scope if entered
+        if enter_scope:
+            self.symbol_table.exit_scope()
 
         return ('Block', statements)
 
 
-    # Expression Parsing - AI helped me fill in some gaps here, mostly with helper functions
+    # Expression Parsing - ChatGPT helped me fill in some gaps here, mostly with helper functions
     def parse_expression(self, priority = 0):
-        leftmost_expr = self.parse_primaryExp()
+        left_expr = self.parse_primaryExp()
 
         # While the next token is an operator, parse the binary operation
         while self.current_token and self.is_operator(self.current_token) and self.get_priority(self.current_token) > priority:
@@ -301,10 +302,11 @@ class Parser:
             self.next()
             # Look ahead for other operands with higher priority 
             right_expr = self.parse_expression(self.get_priority(op_token))
-            leftmost_expr = ('BinaryExpression', op_token[0], leftmost_expr, right_expr)
+            left_expr = ('BinaryExpression', op_token[0], left_expr, right_expr)
 
-        return leftmost_expr
+        return left_expr
     
+    # Add unary Operators
 
     # Helper function for Expression Parsing in order to parse a primary expression
     # (literal, identifer, or an expression in paratheses)
@@ -312,28 +314,33 @@ class Parser:
         token = self.current_token
 
         # Takes in Integers, Floats, Identifiers, and Parenthetic Operations
-        if token[1] == 'INTEGER_LITERAL':
+        # Numeric literals (int, float, hex, binary, octal) 
+        if token[1] in {'INTEGER_LITERAL', 'FLOATING_POINT_LIT', 'HEX_LITERAL', 'BINARY_LITERAL', 'OCTAL_LITERAL'}:
             self.next()
-            return ('IntegerLiteral', token[0])
-        elif token[1] == 'FLOATING_POINT_LIT':
-            self.next()
-            return ('FloatingPointLiteral', float(token[0]))
-        elif token[1] == 'HEX_LITERAL':  # Handle hex literals
-            self.next()
-            return ('HexLiteral', token[0])
-        elif token[1] == 'BINARY_LITERAL':  # Handle binary literals
-            self.next()
-            return ('BinaryLiteral', token[0])
-        elif token[1] == 'OCTAL_LITERAL':  # Handle octal literals
-            self.next()
-            return ('OctalLiteral', token[0])
+            # Determine the correct numeric type based on the token type
+            value_str = token[0]
+            token_type = token[1]
+
+            if token_type == 'INTEGER_LITERAL':
+                value = int(value_str)
+            elif token_type == 'FLOATING_POINT_LIT':
+                value = float(value_str)
+            elif token_type == 'HEX_LITERAL':
+                value = int(value_str, 16)
+            elif token_type == 'BINARY_LITERAL':
+                value = int(value_str, 2)
+            elif token_type == 'OCTAL_LITERAL':
+                value = int(value_str, 8)
+            else:
+                raise ValueError(f"Unknown numeric literal type: {token_type}")
+            return ('Number', value)
         elif token[1] == 'IDENTIFIER':
             self.next()
             if self.symbol_table.lookup(token[0]):
                 return ('Variable', token[0])
             else:
                 raise NameError(f"Variable '{token[0]}' not declared.")
-        elif token[1] == 'STRING_LITERAL':  # New case for string literals
+        elif token[1] == 'STRING_LITERAL':  
             self.next()
             return ('StringLiteral', token[0])
         elif token[0] == '(':
@@ -344,7 +351,7 @@ class Parser:
             return expr
         else:
             raise SyntaxError(f"Unexpected token: {token}")
-    
+    # Convert all to the same type for ease of use
 
     # Helper function for Expression Parsing to check if a token is an operator
     def is_operator(self, token):
@@ -365,70 +372,20 @@ class Parser:
 
 
 class SymbolTable:
-
-    # Initilization Function
     def __init__(self):
-        self.symbols = []
-        self.scope_level = -1
-        self.function_types = {}
-    
+        self.scopes = [{}]  
+        # Tracking exited scopes
+        self.exited_scopes = []
 
-    # Function to enter a new scope
     def enter_scope(self):
-        self.scope_level += 1
-        self.symbols.append({})
-        print(f"Entered scope level {self.scope_level}")
-    
+        self.scopes.append({})
 
-    # Function to exit the current scope
     def exit_scope(self):
-        if self.scope_level > 0:
-            local_vars = self.symbols.pop()  # Get local vars before popping
-            print(f"Exited scope level {self.scope_level}, local variables: {local_vars}")
-            self.scope_level -= 1
-    
+        exited_scope = self.scopes.pop()
+        self.exited_scopes.append(exited_scope)
+        return exited_scope
 
-    # Declaration function
-    def declare(self, name, var_type):
-        if name in self.function_types:
-            raise SyntaxError(f"Function '{name}' already declared.")
-        
-        if name in self.symbols[self.scope_level]:
-            raise SyntaxError(f"Variable '{name}' already declared in the current scope.")
-        
-        # Store variable or function type
-        self.symbols[self.scope_level][name] = var_type
-        print(f"Declared {name} of type {var_type} in scope level {self.scope_level}")
-
-
-    # Defining Functions
-    def define_function(self, name, return_type):
-        # Make sure it doesn't already exist
-        if name in self.function_types:
-            raise SyntaxError(f"Function '{name}' already defined.")
-        self.function_types[name] = return_type
-
-
-    # Getting Function Type
-    def get_function_type(self, name):
-        return self.function_types.get(name, None)
-    
-
-    # Lookup function
-    def lookup(self, name):
-        # Check scopes from innermost to outermost
-        for scope in reversed(self.symbols):
-            if name in scope:
-                return scope[name]
-        
-        # Returning function type (if found)
-        if name in self.function_types:
-            return self.function_types[name]
-
-        raise NameError(f"Variable '{name}' not found in any scope.")
-    
-    
-    # Function specifying return type
-    def get_function_return_type(self, function_name):
-        return self.function_types.get(function_name, None)
-    
+    def declare_variable(self, name, var_type):
+        if name in self.scopes[-1]:
+            raise NameError(f"Variable '{name}' already declared in this scope.")
+        self.sco

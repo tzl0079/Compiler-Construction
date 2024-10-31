@@ -1,10 +1,12 @@
 # Author: Thomas Lander
-# Date: 10/04/24
+# Date: 10/31/24
 # compiler.py
 
 import argparse
 from lexer import Lexer, TOKEN_TYPES
 from my_parser import Parser, SymbolTable
+from three_address_code import ThreeAddressCodeGenerator
+from optimize import Optimizer
 
 
 # Printing tokens (I loved the way Tullis's AI written code printed in code review, so I used the same template)
@@ -20,7 +22,7 @@ def print_tokens(tokens):
 
 
 # Printing out the AST
-def print_ast(node, indent=0):
+def print_ast(node, indent = 0):
     spacing = '  ' * indent
 
     if isinstance(node, tuple):
@@ -36,26 +38,31 @@ def print_ast(node, indent=0):
 
 # Printing out the Symbol Table, having some troubles with it though
 def print_symboltable(symbol_table):
-    # Print Global Scope
-    print("Global Scope (function declarations):")
-    for name, var_type in symbol_table.function_types.items():
-        print(f"  {name}: {var_type}")
+    print("Symbol Table:")
+    print("--------------------------------------------------")
 
-    # Print Local Variables
-    print("\nLocal Variables:")
-    
-    # Iterate through all scopes, starting from the current scope
-    for scope_level in range(symbol_table.scope_level, -1, -1):
-        if scope_level >= 0 and scope_level < len(symbol_table.symbols):
-            local_vars = symbol_table.symbols[scope_level]
-            if local_vars:
-                print(f"Scope Level {scope_level}:")
-                for name, var_type in local_vars.items():
-                    print(f"  {name}: {var_type}")
-            else:
-                print(f"Scope Level {scope_level}: No local variables.")
+    # Print Global Scope (function declarations)
+    print("Global Scope (function declarations):")
+    global_functions = symbol_table.scopes[0]
+    for func_name, func_type in global_functions.items():
+        print(f"  {func_name}: {func_type}")
+
+    # Print Local Variables in each active and exited scope
+    for scope_level, scope in enumerate(symbol_table.scopes[1:], start=1):
+        print(f"\nLocal Variables in Active Scope Level {scope_level}:")
+        if scope:
+            for var_name, var_type in scope.items():
+                print(f"  {var_name}: {var_type}")
         else:
-            print(f"Scope Level {scope_level}: No local variables.")
+            print("  No local variables.")
+
+    for scope_level, scope in enumerate(symbol_table.exited_scopes, start=len(symbol_table.scopes)):
+        print(f"\nLocal Variables in Scope Level {scope_level}:")
+        if scope:
+            for var_name, var_type in scope.items():
+                print(f"  {var_name}: {var_type}")
+        else:
+            print("  No local variables.")
 
 
 def read_file(file_path):
@@ -96,14 +103,23 @@ def main():
             ast = parser.parse()
 
             # Print the AST
+            print('-' * 50)
             print("Abstract Syntax Tree:")
             print('-' * 50)
             print_ast(ast)
+            print('-' * 50)
 
             # Print the symbol table
-            print("\nSymbol Table:")
-            print('-' * 50)
             print_symboltable(parser.symbol_table)
+
+            generator = ThreeAddressCodeGenerator(ast)
+            three_point_code = generator.generate()
+
+            print('-' * 50)
+            print("3-Address Code:")
+            print('-' * 50)
+            for line in three_point_code:
+                print(line)
 
         else:
             print(f"Failed to process file: {file}")
