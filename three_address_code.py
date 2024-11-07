@@ -49,6 +49,8 @@ class ThreeAddressCodeGenerator:
             self.visit_declaration(node)
         elif node_type == 'Assignment':
             self.visit_assignment(node)
+        elif node_type == 'UnaryExpression':
+            self.visit_unary_expression(node)
         elif node_type in {'Number', 'Variable', 'StringLiteral'}:
             return self.visit_primary_expression(node)
         else:
@@ -56,6 +58,7 @@ class ThreeAddressCodeGenerator:
 
 
     # Handling function definitions
+    # Takes in node - ('FunctionDefinition', return_type, function_name, parameters, body)
     def visit_function_definition(self, node):
         _, return_type, function_name, parameters, body = node
         self.code.append(f"{function_name}() BEGIN")
@@ -67,6 +70,7 @@ class ThreeAddressCodeGenerator:
 
 
     # Handling binary expressions (e.g., a + b)
+    # Takes in node - ('BinaryExpression', operator, left_expr, right_expr))
     def visit_binary_expression(self, node):
         _, operator, left, right = node
         leftside = self.visit(left)
@@ -79,6 +83,7 @@ class ThreeAddressCodeGenerator:
 
 
     # Handling if-statements
+    # Takes in node - ('IfStatement', condition, block, temp_block)
     def visit_if_statement(self, node):
         _, condition, true_body, false_body = node
         true_label = self.new_label()
@@ -108,7 +113,8 @@ class ThreeAddressCodeGenerator:
         self.code.append(f"{end_label}:")
 
 
-        # Handling while loops
+    # Handling while loops
+    # Takes in node - ('WhileLoop', condition, body)
     def visit_while_loop(self, node):
         _, condition, body = node
         start_label = self.new_label()
@@ -133,6 +139,7 @@ class ThreeAddressCodeGenerator:
 
 
     # Handling for loops
+    # Takes in node - ('ForLoop', initialization, condition, update, body)
     def visit_for_loop(self, node):
         _, initialization, condition, update, body = node
         start_label = self.new_label()
@@ -163,6 +170,7 @@ class ThreeAddressCodeGenerator:
 
 
     # Handling return statements
+    # Takes in node - ('ReturnStatement', return_value)
     def visit_return_statement(self, node):
         _, return_value = node
         if return_value:
@@ -173,6 +181,8 @@ class ThreeAddressCodeGenerator:
 
 
     # Handling declarations
+    # Takes in node - ('Declaration', var_type, var_name, assignment) 
+    #               OR 'Declaration', var_type, var_name) if no assignment
     def visit_declaration(self, node):
         # Declaration w/ initlialization
         if len(node) == 4:
@@ -186,10 +196,50 @@ class ThreeAddressCodeGenerator:
         else:
             raise ValueError(f"Unexpected Declaration node format: {node}")
         
+
+    # Handling Assignments
+    # Takes in node - ('Assignment', var_name, expression)
     def visit_assignment(self, node):
         _, var_name, expression = node
         expr_value = self.visit(expression)
         self.code.append(f"{var_name} = {expr_value}")
+
+
+    # Handling Unary Operators
+    # Takes in node - ('UnaryExpression', operator, ('Variable', var_name))
+    def visit_unary_expression(self, node):
+        _, operator, operand, *optional = node
+        var_name = self.visit(operand)
+
+        if operator == '++':
+            # Post-increment
+            if optional and optional[0] == 'postfix':
+                # store current value, then increment
+                temp_var = self.new_temp()
+                self.code.append(f"{temp_var} = {var_name}")
+                self.code.append(f"{var_name} = {var_name} + 1")
+                return temp_var
+            # Pre-increment
+            else:
+                # increment, then use updated value
+                self.code.append(f"{var_name} = {var_name} + 1")
+                return var_name
+            
+        elif operator == '--':
+            # Post-decrement
+            if optional and optional[0] == 'postfix':
+                # store current value, then decrement
+                temp_var = self.new_temp()
+                self.code.append(f"{temp_var} = {var_name}")
+                self.code.append(f"{var_name} = {var_name} - 1")
+                return temp_var
+            # Pre-decrement
+            else:
+                # decrement, then use updated value
+                self.code.append(f"{var_name} = {var_name} - 1")
+                return var_name
+        else:
+            raise ValueError(f"Unknown unary operator: {operator}")
 
 
     # Add support for primary expressions (literals, identifiers, etc.)

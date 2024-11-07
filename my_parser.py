@@ -120,7 +120,7 @@ class Parser:
         return ('FunctionCall', function_name, arguments)
 
 
-     # Declaration Parsing - "int x"
+    # Declaration Parsing - "int x"
     def parse_declaration(self):
         # Obtaining variable type
         var_type = self.current_token[0]
@@ -145,6 +145,7 @@ class Parser:
 
         # Returning the declaration depending on if a value was assigned
         return ('Declaration', var_type, var_name, assignment) if assignment else ('Declaration', var_type, var_name)
+
 
     # Assignment Parsing - "x = 10"
     def parse_assignment(self):
@@ -178,7 +179,27 @@ class Parser:
             elif self.current_token[0] == 'return':
                 return self.parse_return_statement()
         elif self.current_token[1] == 'IDENTIFIER':
-            return self.parse_assignment()
+            # Look ahead to identify if this is an assignemnt or unary operation
+            if self.pos + 1 < len(self.tokens) and self.tokens[self.pos + 1][1] in {'ASSIGNMENT_OPERATOR', 'INCREMENT_OPERATOR', 'DECREMENT_OPERATOR'}:
+                # Basic assignment
+                if self.tokens[self.pos + 1][1] == 'ASSIGNMENT_OPERATOR':
+                    return self.parse_assignment()
+                # Handling post-increment/decrement
+                elif self.tokens[self.pos + 1][1] in {'INCREMENT_OPERATOR', 'DECREMENT_OPERATOR'}:
+                    var_name = self.current_token[0]
+                    self.next()  # Move past the identifier
+                    op_token = self.current_token
+                    self.next()  # Move past the increment or decrement operator
+                    self.expected_type('PUNCTUATION', ';')
+                    return ('UnaryExpression', op_token[0], ('Variable', var_name))
+        # Handling pre-increment/decrement
+        elif self.current_token[1] in {'INCREMENT_OPERATOR', 'DECREMENT_OPERATOR'}:
+            op_token = self.current_token
+            self.next()  # Move past the increment/decrement operator
+            var_name = self.current_token[0]
+            self.expected_type('IDENTIFIER')
+            self.expected_type('PUNCTUATION', ';')
+            return ('UnaryExpression', op_token[0], ('Variable', var_name))
         else:
             raise SyntaxError(f"Unexpected token: {self.current_token}")
         
@@ -223,35 +244,39 @@ class Parser:
 
     # For-loop Parsing: for (initilization; condition; update) {statements})
     def parse_for_loop(self):
-        self.next()  # Move past 'for'
+        # Skip 'for ('
+        self.next()  
         self.expected_type('PUNCTUATION', '(')
 
-        # Initialization Declaration
+        # Initialization (can be a declaration or an assignment)
         initialization = None
         if self.current_token and self.current_token[0] != ';':
-            print(self.current_token)
-            initialization = self.parse_statement() 
-            print(self.current_token)
-            self.expected_type('PUNCTUATION', ';')
+            if self.current_token[1] == 'KEYWORD': 
+                initialization = self.parse_declaration()
+            else: 
+                initialization = self.parse_assignment()
+        if self.current_token and self.current_token[0] == ';':
+            self.next()
 
-        # Conditional Expression
+        # Condition
         condition = None
         if self.current_token and self.current_token[0] != ';':
             condition = self.parse_expression()
-        self.expected_type('PUNCTUATION', ';')
+            self.next()
 
-        # Update Expression
+        # Update (expression, e.g., i++)
         update = None
         if self.current_token and self.current_token[0] != ')':
             update = self.parse_expression()
 
-        self.expected_type('PUNCTUATION', ')')
+        if self.current_token and self.current_token[0] == ')':
+            self.next()
 
-        # Checking if it has a body or just a statement
+        # Body
         if self.current_token and self.current_token[0] == '{':
             body = self.parse_block()
         else:
-            body = self.parse_statement()
+            body = [self.parse_statement()]
 
         return ('ForLoop', initialization, condition, update, body)
 
@@ -293,20 +318,35 @@ class Parser:
 
 
     # Expression Parsing - ChatGPT helped me fill in some gaps here, mostly with helper functions
-    def parse_expression(self, priority = 0):
+    def parse_expression(self, priority = 0, require_semi = True):
+        # Check for pre-increment or pre-decrement
+        if self.current_token[0] in ('++', '--'):
+            op_token = self.current_token
+            self.next()  # Move past the ++ or --
+            operand = self.parse_primaryExp()  # Parse the operand
+            return ('UnaryExpression', op_token[0], operand)
+
+        # If the expression is ID + '=', treat it as an assignment
+        if self.current_token[1] == 'IDENTIFIER' and self.pos + 1 < len(self.tokens) \
+                            and self.tokens[self.pos + 1][1] == 'ASSIGNMENT_OPERATOR':
+            var_name = self.current_token[0]
+            self.next()  # Move past the identifier
+            self.expected_type('ASSIGNMENT_OPERATOR', '=')
+            value_expr = self.parse_expression(priority)  # Parse the right-hand side of the assignment
+            return ('Assignment', var_name, value_expr)
+    
+        # Handle non-assignment expressions
         left_expr = self.parse_primaryExp()
 
         # While the next token is an operator, parse the binary operation
         while self.current_token and self.is_operator(self.current_token) and self.get_priority(self.current_token) > priority:
             op_token = self.current_token
             self.next()
-            # Look ahead for other operands with higher priority 
             right_expr = self.parse_expression(self.get_priority(op_token))
             left_expr = ('BinaryExpression', op_token[0], left_expr, right_expr)
 
         return left_expr
     
-    # Add unary Operators
 
     # Helper function for Expression Parsing in order to parse a primary expression
     # (literal, identifer, or an expression in paratheses)
@@ -320,8 +360,7 @@ class Parser:
             # Determine the correct numeric type based on the token type
             value_str = token[0]
             token_type = token[1]
-
-            if token_type == 'INTEGER_LITERAL':
+            if token_type in 'INTEGER_LITERAL':
                 value = int(value_str)
             elif token_type == 'FLOATING_POINT_LIT':
                 value = float(value_str)
@@ -334,8 +373,15 @@ class Parser:
             else:
                 raise ValueError(f"Unknown numeric literal type: {token_type}")
             return ('Number', value)
+        
         elif token[1] == 'IDENTIFIER':
             self.next()
+            # Check for postfix increment or decrement
+            if self.current_token and self.current_token[0] in ('++', '--'):
+                op_token = self.current_token
+                self.next()  # Move past the ++ or --
+                return ('UnaryExpression', op_token[0], ('Variable', token[0]), 'postfix')
+
             if self.symbol_table.lookup(token[0]):
                 return ('Variable', token[0])
             else:
@@ -351,11 +397,12 @@ class Parser:
             return expr
         else:
             raise SyntaxError(f"Unexpected token: {token}")
-    # Convert all to the same type for ease of use
+
 
     # Helper function for Expression Parsing to check if a token is an operator
     def is_operator(self, token):
         return token[1] == "ARITHMETIC_OPERATOR" or "LOGICAL_OPERATOR"
+
 
     # Helper function to ensure correct order of arthimetic operations
     # AI helped me with the use of a precendence/priority table
@@ -371,21 +418,38 @@ class Parser:
         return priority_map.get(token[0], 0)
 
 
+
 class SymbolTable:
     def __init__(self):
         self.scopes = [{}]  
         # Tracking exited scopes
         self.exited_scopes = []
 
+
     def enter_scope(self):
         self.scopes.append({})
+
 
     def exit_scope(self):
         exited_scope = self.scopes.pop()
         self.exited_scopes.append(exited_scope)
         return exited_scope
 
+
     def declare_variable(self, name, var_type):
         if name in self.scopes[-1]:
             raise NameError(f"Variable '{name}' already declared in this scope.")
-        self.sco
+        self.scopes[-1][name] = var_type
+
+
+    def lookup(self, name):
+        for scope in reversed(self.scopes):
+            if name in scope:
+                return scope[name]
+        return None
+
+
+    def define_function(self, name, return_type):
+        if name in self.scopes[0]:
+            raise NameError(f"Function '{name}' already declared.")
+        self.scopes[0][name] = return_type

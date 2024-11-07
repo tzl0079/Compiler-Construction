@@ -19,6 +19,8 @@ TOKEN_TYPES = [
     (r'\b\d+\b', 'INTEGER_LITERAL'),
     (r'"(?:[^"\\]|\\.)*"', 'STRING_LITERAL'),
     (r"'(?:[^'\\]|\\.)'", 'CHARACTER_LITERAL'),
+    (r'\+\+', 'INCREMENT_OPERATOR'), 
+    (r'--', 'DECREMENT_OPERATOR'),
     (r'[\+\-\*\/\%]+', 'ARITHMETIC_OPERATOR'),
     (r'[=]', 'ASSIGNMENT_OPERATOR'),
     (r'\b(?:and|or|not|&&|\|)\b', 'LOGICAL_OPERATOR'),
