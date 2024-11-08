@@ -1,5 +1,5 @@
 # Author: Thomas Lander
-# Date: 10/31/24
+# Date: 11/08/24
 # my_parser.py 
 
 class Parser: 
@@ -38,7 +38,6 @@ class Parser:
 
     # Main parsing function
     def parse(self):
-        self.symbol_table.enter_scope()
         ast = []
 
         # Start parsing - declarations, functions, etc.
@@ -47,8 +46,6 @@ class Parser:
                 ast.append(self.parse_function_definition())
             else:
                 ast.append(self.parse_statement())
-
-        self.symbol_table.exit_scope()
     
         return ast
 
@@ -71,6 +68,9 @@ class Parser:
         # Parsing Parameters within parentheses
         self.expected_type('PUNCTUATION', '(')
         parameters = self.parse_parameters()
+        # Add the parameters to symbol table
+        for param_type, param_name in parameters:
+            self.symbol_table.declare_variable(param_name, param_type)
         self.expected_type('PUNCTUATION', ')')
 
         body = self.parse_block(enter_scope = False)
@@ -128,8 +128,10 @@ class Parser:
         
         if self.current_token[1] == 'IDENTIFIER':
             var_name = self.current_token[0]
-            # Adding to the Symbol Table
-            self.symbol_table.declare_variable(var_name, var_type)
+            # Ensure variable is declared in the correct scope
+            # Only declare the variable in the current (function) scope if it doesn’t already exist
+            if not self.symbol_table.lookup(var_name, current_scope_only=True):
+                self.symbol_table.declare_variable(var_name, var_type)
             self.next()
         else:
             raise SyntaxError(f"Expected IDENTIFIER, but got {self.current_token}")
@@ -166,6 +168,10 @@ class Parser:
 
     # Statement Parsing
     def parse_statement(self):
+        # If no more tokens exist, stop parsing
+        if self.current_token is None:
+            raise SyntaxError("Unexpected end of input")
+        
         # Takes in Keywords and Identifiers, error elsewise
         if self.current_token[1] == 'KEYWORD':
             if self.current_token[0] == 'if':
@@ -274,9 +280,12 @@ class Parser:
 
         # Body
         if self.current_token and self.current_token[0] == '{':
+            self.symbol_table.enter_scope()
             body = self.parse_block()
         else:
             body = [self.parse_statement()]
+            self.symbol_table.exit_scope()
+        self.symbol_table.exit_scope()
 
         return ('ForLoop', initialization, condition, update, body)
 
@@ -418,37 +427,42 @@ class Parser:
         return priority_map.get(token[0], 0)
 
 
-
 class SymbolTable:
     def __init__(self):
         self.scopes = [{}]  
         # Tracking exited scopes
         self.exited_scopes = []
 
-
+    # Entering a new scope
     def enter_scope(self):
         self.scopes.append({})
 
-
+    # Exiting a scope
     def exit_scope(self):
+        if not self.scopes:
+            raise IndexError("No scope to exit")
         exited_scope = self.scopes.pop()
         self.exited_scopes.append(exited_scope)
         return exited_scope
 
-
+    # Declaring variables in the Symbol Table
     def declare_variable(self, name, var_type):
+        if not self.scopes:
+            raise IndexError("No scope available for declaration")
         if name in self.scopes[-1]:
             raise NameError(f"Variable '{name}' already declared in this scope.")
         self.scopes[-1][name] = var_type
 
-
-    def lookup(self, name):
+    # Checking for if variables already exist
+    def lookup(self, name, current_scope_only = False):
+        if current_scope_only:
+            return self.scopes[-1].get(name)
         for scope in reversed(self.scopes):
             if name in scope:
                 return scope[name]
         return None
 
-
+    # Check if function already exists
     def define_function(self, name, return_type):
         if name in self.scopes[0]:
             raise NameError(f"Function '{name}' already declared.")

@@ -1,5 +1,5 @@
 # Author: Thomas Lander
-# Date: 10/23/24
+# Date: 11/08/24
 # lexer.py
 
 import re
@@ -30,6 +30,7 @@ TOKEN_TYPES = [
     (r'//[^\n]*', 'SINGLE_LINE_COMMENT'),
     (r'/\*[\s\S]*?\*/', 'MULTI_LINE_COMMENT'),
 ]
+
 
 class Lexer:
     # Initializing the lexer

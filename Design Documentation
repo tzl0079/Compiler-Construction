@@ -1,17 +1,18 @@
 # Author: Thomas Lander
-# Date: 10/30/24
+# Date: 11/08/24
 # Design Documentation
 
 My simple C compiler works off of the following grammar:
         Program -> Statement
-        Statement -> Declaration | Assignment | UnaryExp | Expression | If_Stmnt | For_Loop | While_Loop | Return 
-        Declaration -> ID 
-        Assignment -> ID "=" Expression
+        Statement -> Declaration | Assignment | UnaryExp | Expression | If_Stmnt | While_Loop | For_Loop | Return 
+        Declaration -> Keyword + ID "=" ID | Keyword + ID "=" Value
+        Assignment -> ID "=" Expression 
         UnaryExp -> ++ID | ID++ | --ID | ID--
         Expression -> Expression OP Term | Term
         If_Stmnt -> "if" "(" Expression ")" "{" Statement* "}" | "if" "(" Expression ")" "{" Statement* "}" "else" "{" Statement "}"
         While_Loop -> "while" "(" Expression ")" "{" Block "}"
         For_Loop -> "for" "(" Expression ";" Expression ";" Expression ")" "{" Statement "}"
+        Return -> "return" + ID | "return" + Value
         Term -> Num | String | ID | Expression
         OP -> "+" | "-" | "*" | "/" | "==" | "!=" | "<" | ">" | "<=" | ">=" 
 

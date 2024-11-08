@@ -1,5 +1,5 @@
 # Author: Thomas Lander
-# Date: 10/31/24
+# Date: 11/08/24
 # compiler.py
 
 import argparse
@@ -32,6 +32,9 @@ def print_ast(node, indent = 0):
     elif isinstance(node, list):
         for item in node:
             print_ast(item, indent)
+    elif isinstance(node, str):
+        # Print the string directly without breaking it down
+        print(f"{spacing}{node}")
     else:
         print(f"{spacing}{node}")
 
@@ -80,7 +83,14 @@ def main():
     # Setting up the Argument Parser
     parser = argparse.ArgumentParser(description='Process a file through the lexer.')
     parser.add_argument('file', type=str, help='The file to be processed.')
+        # List Tokens Generated
     parser.add_argument('-L', '--list-tokens', action='store_true', help='Print the list of tokens.')
+        # Constant Folding Optimization
+    parser.add_argument('--o-cf', action='store_true', help='Enable constant folding optimization.')
+        # Constant Propagation Optimization
+    parser.add_argument('--o-cp', action='store_true', help='Enable constant propagation optimization')
+        # Dead Code Elimination Optimization
+    parser.add_argument('--o-dc', action='store_true', help='Enable dead code elimination optimization.')
     
     # Parse the above added arguments
     args = parser.parse_args()
@@ -102,17 +112,33 @@ def main():
             parser = Parser(tokens) 
             ast = parser.parse()
 
-            # Print the AST
+            # Print the AST before Optimization
             print('-' * 50)
-            print("Abstract Syntax Tree:")
+            print("Abstract Syntax Tree (Before Optimization):")
             print('-' * 50)
             print_ast(ast)
             print('-' * 50)
 
+            # Optimization
+            optimizer = Optimizer(ast)
+            if args.o_cf or args.o_cp or args.o_dc:
+                optimized_ast = optimizer.optimize(
+                    constant_folding = args.o_cf,
+                    constant_propagation = args.o_cp,
+                    dead_code_elimination = args.o_dc
+                )
+                # Print the optimized AST
+                print("Abstract Syntax Tree (After Optimization):")
+                print('-' * 50)
+                print_ast(optimized_ast)
+                print('-' * 50)
+            else:
+                optimized_ast = ast
+
             # Print the symbol table
             print_symboltable(parser.symbol_table)
 
-            generator = ThreeAddressCodeGenerator(ast)
+            generator = ThreeAddressCodeGenerator(optimized_ast)
             three_point_code = generator.generate()
 
             print('-' * 50)
