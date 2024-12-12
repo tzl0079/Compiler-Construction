@@ -29,7 +29,10 @@ It can parse the following into ASTs and Symbol Tables:
   10) For Loops
   11) Return Statements
 
-My compiler then converts the AST into 3-Address Code and can perform the following optimizations (IN PROGRESS)
+My compiler then converts the AST into 3-Address Code and can perform the following optimizations 
    1) Constant Folding
    2) Constant Propogation
+   3) Dead Code Elimination 
+
+After converting to 3-Address Code and Optimizing, the last step is conversion to x86 Assembly Code
    

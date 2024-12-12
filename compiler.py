@@ -7,6 +7,7 @@ from lexer import Lexer, TOKEN_TYPES
 from my_parser import Parser, SymbolTable
 from three_address_code import ThreeAddressCodeGenerator
 from optimize import Optimizer
+from assembly import TACtoAssemblyConverter
 
 
 # Printing tokens (I loved the way Tullis's AI written code printed in code review, so I used the same template)
@@ -82,19 +83,20 @@ def read_file(file_path):
 def main():
     # Setting up the Argument Parser
     parser = argparse.ArgumentParser(description='Process a file through the lexer.')
-    parser.add_argument('file', type=str, help='The file to be processed.')
-        # List Tokens Generated
-    parser.add_argument('-L', '--list-tokens', action='store_true', help='Print the list of tokens.')
-        # Constant Folding Optimization
-    parser.add_argument('--o-cf', action='store_true', help='Enable constant folding optimization.')
-        # Constant Propagation Optimization
-    parser.add_argument('--o-cp', action='store_true', help='Enable constant propagation optimization')
-        # Dead Code Elimination Optimization
-    parser.add_argument('--o-dc', action='store_true', help='Enable dead code elimination optimization.')
+    parser.add_argument('file', type = str, help = 'The file to be processed.')
+    # List Tokens Generated
+    parser.add_argument('-L', '--list-tokens', action = 'store_true', help = 'Print the list of tokens.')
+    # Constant Folding Optimization
+    parser.add_argument('--o-cf', action = 'store_true', help = 'Enable constant folding optimization.')
+    # Constant Propagation Optimization
+    parser.add_argument('--o-cp', action = 'store_true', help = 'Enable constant propagation optimization')
+    # Dead Code Elimination Optimization
+    parser.add_argument('--o-dc', action = 'store_true', help = 'Enable dead code elimination optimization.')
+    # Assembly Code Generation
+    parser.add_argument('--gen-asm', action = 'store_true', help = 'Generate assembly code from TAC.')
     
     # Parse the above added arguments
     args = parser.parse_args()
-    
     file = args.file
     try:
         tokens = read_file(file)
@@ -104,7 +106,7 @@ def main():
             if args.list_tokens:
                 print(f"Tokens from file: {file}")
                 print_tokens(tokens)
-            # If flag is not used, just generates
+            # If flag is not used, just generate the tokens
             else:
                 print(f"Tokens generated from file: {file} but not printed. Use -L to list tokens.")
 
@@ -114,38 +116,69 @@ def main():
 
             # Print the AST before Optimization
             print('-' * 50)
-            print("Abstract Syntax Tree (Before Optimization):")
+            print("Abstract Syntax Tree:")
             print('-' * 50)
             print_ast(ast)
             print('-' * 50)
 
+            # Print the symbol table
+            print_symboltable(parser.symbol_table)
+
+            # Generate Three Address Code from the AST
+            generator = ThreeAddressCodeGenerator(ast)
+            tac = generator.generate()
+
             # Optimization
-            optimizer = Optimizer(ast)
             if args.o_cf or args.o_cp or args.o_dc:
-                optimized_ast = optimizer.optimize(
+
+                # Print the TAC before optimization
+                print('-' * 50)
+                print("Generated 3-Address Code (Before Optimization):")
+                print('-' * 50)
+                for line in tac:
+                    print(line)
+
+                # Optimize the Three Address Code
+                optimizer = Optimizer(tac)
+                optimized_tac = optimizer.optimize(
                     constant_folding = args.o_cf,
                     constant_propagation = args.o_cp,
                     dead_code_elimination = args.o_dc
                 )
-                # Print the optimized AST
-                print("Abstract Syntax Tree (After Optimization):")
+                
+                # Print the TAC after optimization
                 print('-' * 50)
-                print_ast(optimized_ast)
+                print("Generated 3-Address Code (After Optimization):")
                 print('-' * 50)
+                for line in optimized_tac:
+                    print(line)
+                print('-' * 50)
+
+                # Generate Assembly Code for optimized TAC
+                if args.gen_asm:
+                    print("Generated x86 Assembly Code:")
+                    print('-' * 50)
+                    converter = TACtoAssemblyConverter(optimized_tac)
+                    assembly_code = converter.convert()
+                    print(assembly_code)
+                    print('-' * 50)
+
+            # No TAC Optimizations
             else:
-                optimized_ast = ast
+                print('-' * 50)
+                print("Generated 3-Address Code:")
+                print('-' * 50)
+                for line in tac:
+                    print(line)
 
-            # Print the symbol table
-            print_symboltable(parser.symbol_table)
-
-            generator = ThreeAddressCodeGenerator(optimized_ast)
-            three_point_code = generator.generate()
-
-            print('-' * 50)
-            print("3-Address Code:")
-            print('-' * 50)
-            for line in three_point_code:
-                print(line)
+                # Generate Assembly Code
+                if args.gen_asm:
+                    print("Generated x86 Assembly Code:")
+                    print('-' * 50)
+                    converter = TACtoAssemblyConverter(tac)
+                    assembly_code = converter.convert()
+                    print(assembly_code)
+                    print('-' * 50)
 
         else:
             print(f"Failed to process file: {file}")

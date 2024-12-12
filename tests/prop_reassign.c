@@ -3,6 +3,7 @@ int main() {
     int y = 1;
 
     x = y + 2;
+    x = 1;
 
     return x;			
 }

@@ -33,6 +33,7 @@ class ThreeAddressCodeGenerator:
     # Function to handle different node types in the AST
     def visit(self, node):
         node_type = node[0]
+
         if node_type == 'FunctionDefinition':
             self.visit_function_definition(node)
         elif node_type == 'BinaryExpression':
@@ -87,27 +88,28 @@ class ThreeAddressCodeGenerator:
     def visit_if_statement(self, node):
         _, condition, true_body, false_body = node
         true_label = self.new_label()
-        false_label = self.new_label()
         end_label = self.new_label()
 
         # Evaluate condition
         condition_temp = self.visit(condition)
         self.code.append(f"if {condition_temp} goto {true_label}")
-        self.code.append(f"goto {false_label}")
+
+        # Set false branch (else statement) if it exists
+        if false_body:
+            false_label = self.new_label()
+            self.code.append(f"goto {false_label}")
 
         # True branch
         self.code.append(f"{true_label}:")
         for stmt in true_body[1]:
             self.visit(stmt)
 
-        # False branch, if exists
+        # False branch, if it exists
         if false_body:
             self.code.append(f"goto {end_label}")
             self.code.append(f"{false_label}:")
             for stmt in false_body[1]:
                 self.visit(stmt)
-        else:
-            self.code.append(f"{false_label}:")
 
         # End label
         self.code.append(f"{end_label}:")
@@ -187,7 +189,7 @@ class ThreeAddressCodeGenerator:
         # Declaration w/ initlialization
         if len(node) == 4:
             _, var_type, var_name, initialization = node
-            init_value = self.visit(initialization)  # Generate code for initialization
+            init_value = self.visit(initialization) 
             self.code.append(f"{var_name} = {init_value}")
         # Declaration w/o
         elif len(node) == 3:

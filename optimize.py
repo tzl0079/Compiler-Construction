@@ -1,202 +1,246 @@
 # Author: Thomas Lander
-# Date: 11/08/24
-# optimize.py 
+# Date: 12/02/24
+# three_address_code.py
 
 class Optimizer:
-    def __init__(self, ast):
-        self.ast = ast
-        self.constant_values = {}
+    def __init__(self, tac):
+        self.tac = tac
+        self.constants = {} 
 
+
+    # Main Optimization function, checks for true flags and applies the appropriate optimization techniques
     def optimize(self, constant_folding = False, constant_propagation = False, dead_code_elimination = False):
-        # Apply optimization techniques based on flags
+        optimized_tac = self.tac
+
         if constant_folding:
-            self.ast = [self.constant_folding(node) for node in self.ast]
+            optimized_tac = self.apply_constant_folding(optimized_tac)
         if constant_propagation:
-            self.ast = [self.propagate_constants(node) for node in self.ast]
+            optimized_tac = self.apply_constant_propagation(optimized_tac)
         if dead_code_elimination:
-            self.ast = [self.remove_dead_code(node) for node in self.ast]
-        
-        return self.ast
+            optimized_tac = self.apply_dead_code_elimination(optimized_tac)
+
+        return optimized_tac
 
 
-    # Constant folding for binary expressions and direct numeric computations
-    def constant_folding(self, node):
-        node_type = node[0]
+    # Constant Folding Optimization 
+    # t1 = 1 + 3 --> t1 = 4
+    def apply_constant_folding(self, tac):
+        optimized_tac = []
 
-        if node_type == 'BinaryExpression':
-            _, operator, left, right = node
-            # Recursively simplify left and right expressions
-            left = self.constant_folding(left)
-            right = self.constant_folding(right)
-    
-            # Check if both sides are now constants after folding
-            if left[0] == 'Number' and right[0] == 'Number':
-                result = self.evaluate_exp(operator, float(left[1]), float(right[1]))
-                return ('Number', str(result))  # Return a simplified constant expression
-            else:
-                return ('BinaryExpression', operator, left, right)
+        for line in tac:
+            # Check for assignments
+            if " = " in line:
+                var, expr = line.split(" = ", 1)
+                expr_parts = expr.split(" ")
 
-        elif node_type == 'UnaryExpression':
-            _, operator, operand = node
-            operand = self.constant_folding(operand)
-            if operand[0] == 'Number':
-                # Handle unary operations on constants
-                if operator == '++':
-                    return ('Number', str(int(operand[1]) + 1))
-                elif operator == '--':
-                    return ('Number', str(int(operand[1]) - 1))
-            return ('UnaryExpression', operator, operand)
+                # Try to evaluate expressions directly
+                if all(part.isdigit() or part.replace('.', '', 1).isdigit() for part in expr_parts \
+                        if part not in ['+', '-', '*', '/', '%']):
+                    try:
+                        result = self.evaluate_expression(expr_parts)
+                        optimized_tac.append(f"{var} = {result}")
+                        continue  
+                    # If evaluation fails, just skip to next
+                    except Exception:
+                        pass 
 
-        elif node_type == 'IfStatement':
-            _, condition, if_block, else_block = node
-            optimized_condition = self.constant_folding(condition)
-            if optimized_condition[0] == 'Number':
-                # Simplify if condition is a constant
-                if optimized_condition[1] == '1':
-                    return self.constant_folding(if_block)
-                elif optimized_condition[1] == '0':
-                    return self.constant_folding(else_block) if else_block else None
-            else:
-                # Recursively fold both branches
-                optimized_if_block = [self.constant_folding(stmt) for stmt in if_block]
-                optimized_else_block = [self.constant_folding(stmt) for stmt in else_block] if else_block else None
-                return ('IfStatement', optimized_condition, optimized_if_block, optimized_else_block)
+            # Append unchanged line if can't fold 
+            optimized_tac.append(line)
 
-        elif node_type == 'ForLoop':
-            _, init, condition, update, body = node
-            optimized_init = self.constant_folding(init) if init else None
-            optimized_condition = self.constant_folding(condition) if condition else None
-            optimized_update = self.constant_folding(update) if update else None
-            optimized_body = [self.constant_folding(stmt) for stmt in body]
-            return ('ForLoop', optimized_init, optimized_condition, optimized_update, optimized_body)
-
-        elif node_type == 'ReturnStatement':
-            _, value = node
-            return ('ReturnStatement', self.constant_folding(value))
-
-        # Process function blocks and any nested statements
-        elif node_type == 'Block':
-            return ('Block', [self.constant_folding(stmt) for stmt in node[1]])
-
-        # Return other types as-is (Number, Variable, etc.)
-        return node
-        
-
-    # Helper to evaluate expressions during folding
-    def evaluate_exp(self, operator, left, right):
-        if operator == '+':
-            return left + right
-        elif operator == '-':
-            return left - right
-        elif operator == '*':
-            return left * right
-        elif operator == '/':
-            return left / right 
-        elif operator == '%':
-            return left % right
-        else:
-            raise ValueError(f"Unknown operator: {operator}")
+        return optimized_tac
 
 
-    # Constant propagation for declarations and assignments
-    def propagate_constants(self, node):
-        node_type = node[0]
+    # Constant Propagation Optimization
+    # t1 = x + 2 --> t1 = 3 + 2 (where x = 3)
+    def apply_constant_propagation(self, tac):
+        optimized_tac = [] 
+        self.constants = {}
+        inside_loop = False  
 
-        # Check if Declaration and if it is of the form "int x = 5"
-        # Node Structure - ('Declaration', var_type, var_name, assignment)
-        #               OR ('Declaration', var_type, var_name)
-        if node_type == 'Declaration' and len(node) == 4:
-            _, var_type, var_name, value = node
-            value = self.constant_folding(value)  # Ensure folding occurs first
-            if value and value[0] == 'Number':
-                self.constant_values[var_name] = value[1]  # Store the constant
-            return node
-        
-        # Node Structure - ('Assignment', var_name, expression)
-        elif node_type == 'Assignment':
-            _, var_name, value = node
-            evaluated_value = self.constant_folding(value)
-            if evaluated_value[0] == 'Number':
-                self.constant_values[var_name] = evaluated_value[1]
-            elif var_name in self.constant_values:
-                # Remove if no longer a constant
-                del self.constant_values[var_name] 
-            return ('Assignment', var_name, evaluated_value)
+        for line in tac:
+            # Detect loop entry via labels (e.g., "L2:")
+            if ":" in line and "goto" not in line:  
+                label = line.split(":")[0]
+                # Set loop flag
+                if label.startswith("L"):
+                    inside_loop = True
+                optimized_tac.append(line) 
+                continue
 
-        elif node_type == 'Variable':
-            var_name = node[1]
-            if var_name in self.constant_values:
-                return ('Number', self.constant_values[var_name])
-            return node
-        
-        # Recursively handle BinaryExpression, UnaryExpression, IfStatement, ForLoop, WhileLoop, Block, etc.
-        elif node_type in {'BinaryExpression', 'UnaryExpression', 'IfStatement', 'ForLoop', 'WhileLoop', 'Block', 'ReturnStatement'}:
-            return self.constant_folding(node)
+            # Reset loop flag when no longer in loop body
+            if "goto" in line and not "if" in line:
+                inside_loop = False
+                optimized_tac.append(line)
+                continue
 
-        # Recursively handle other nodes that may contain expressions
-        elif isinstance(node[1:], tuple):
-            return (node[0], *[self.propagate_constants(child) if isinstance(child, tuple) else child for child in node[1:]])
-        
-        # Return just the node if unapplicable for propagation
-        return node
+            # Check for assignments
+            if " = " in line:
+                var, expr = line.split(" = ", 1)
+                expr_parts = expr.split(" ")
 
-    # Removing Dead Code
-    def remove_dead_code(self, ast):
-        used_vars = set()
-        cleaned_ast = []
-        
-        # Step 1: Collect all used variables in the AST
-        for node in ast:
-            self.collect_used_variables(node, used_vars)
-        print(f"Used variables after collection: {used_vars}")  # Debug statement
+                # Replace variables in the expression with their constant values only if outside loops
+                if not inside_loop:
+                    expr_parts = [str(self.constants.get(part, part)) for part in expr_parts]
 
-        # Step 2: Filter out declarations and assignments for unused variables
-        for node in ast:
-            node_type = node[0]
-            # Node Structure - ('Declaration', var_type, var_name, assignment)
-            #               OR ('Declaration', var_type, var_name)
-            if node_type == 'Declaration':
-                var_name = node[2]
-                if var_name in used_vars:
-                    cleaned_ast.append(node)
-                    print(f"Keeping used variable declaration: {var_name}")
+                # If the entire expression becomes a constant, evaluate it
+                if all(part.isdigit() or part.replace('.', '', 1).isdigit() for part in expr_parts \
+                        if part not in ['+', '-', '*', '/', '%']):
+                    try:
+                        result = self.evaluate_expression(expr_parts)
+                        # Only update the constants map if outside a loop
+                        if not inside_loop:
+                            self.constants[var] = result
+                        optimized_tac.append(f"{var} = {result}")
+                    except Exception:
+                        optimized_tac.append(f"{var} = {' '.join(expr_parts)}")
                 else:
-                    print(f"Removing unused variable declaration: {var_name}")  # Debug statement
-                    continue
- 
+                    # Keep partial propagation and update constants for direct assignments
+                    if not inside_loop and len(expr_parts) == 1 and expr_parts[0].isdigit():
+                        self.constants[var] = int(expr_parts[0])
+                    else:
+                        # Remove if not a constant
+                        self.constants.pop(var, None)
+                    optimized_tac.append(f"{var} = {' '.join(expr_parts)}")
             else:
-                # For other nodes (like ReturnStatement), keep them as they are.
-                cleaned_ast.append(node)
+                # Handle non-assignment lines (e.g., RETURN x)
+                parts = line.split(" ")
+                replaced_parts = [str(self.constants.get(part, part)) for part in parts]
+                optimized_tac.append(" ".join(replaced_parts))
 
-        return cleaned_ast
+        return optimized_tac
 
-    # Helper method for dead code
-    def collect_used_variables(self, node, used_vars):
-        #Recursively traverse the AST to collect all variables that are actually used.
-        if isinstance(node, tuple):
-            node_type = node[0]
 
-            if node_type == 'Variable':
-                # Collect variable if it’s used in any expression
-                used_vars.add(node[1])
+    # Dead Code Elimination
+    # Removes any code that unused / unreachable
+    # ChatGPT helped me debug this as I was having variables be deleted 
+    # despite being vital for the function of a loop, (i.e., "i" and such)
+    def apply_dead_code_elimination(self, tac):
+        used_vars = set()  # Variables used in the program
+        referenced_labels = set()  # Labels referenced in control flow (goto)
+        loop_dependent_vars = set()  # Variables that influence loop conditions or body
+        optimized_tac = []  # Store optimized TAC
+        label_positions = {}  # Track original label positions
 
-            # Node Structure - ('Declaration', var_type, var_name, assignment)
-            #               OR ('Declaration', var_type, var_name)
-            elif node_type == 'Declaration':
-                # Only add the declared variable if it's assigned a value
-                if len(node) > 3 and node[3] is not None:
-                    used_vars.add(node[2]) 
-                    self.collect_used_variables(node[3], used_vars)
+        print("\n[DEBUG] Starting Dead Code Elimination...")
 
-            # Traverse child nodes in expressions, assignments, control structures, etc.
-            for child in node[1:]:
-                if isinstance(child, tuple):
-                    self.collect_used_variables(child, used_vars)
-                elif isinstance(child, list):
-                    for item in child:
-                        self.collect_used_variables(item, used_vars)
-    
+        # Step 1: Identify referenced labels and variables in control flow
+        for i, line in enumerate(tac):
+            print(f"[DEBUG] Processing Line {i}: {line}")
+            if ":" in line and "goto" not in line:  # Label (e.g., L1:)
+                label = line.split(":")[0]
+                label_positions[label] = i
+                print(f"[DEBUG] Found Label: {label}")
+            elif "goto" in line:
+                parts = line.split()
+                if "if" in parts:  # Conditional goto
+                    condition_var = parts[1]  # Condition variable (e.g., t1)
+                    used_vars.add(condition_var)
+                    loop_dependent_vars.add(condition_var)
+                    print(f"[DEBUG] Adding Conditional Variable to Used Vars: {condition_var}")
+                target_label = parts[-1]
+                referenced_labels.add(target_label)
+                print(f"[DEBUG] Adding Referenced Label: {target_label}")
 
-# Example usage:
-# optimizer = Optimizer(ast)
-# optimized_ast = optimizer.optimize()
+        # Step 2: Backward pass to find all used variables and retain control flow
+        for line in reversed(tac):
+            print(f"[DEBUG] Backward Processing Line: {line}")
+            if ":" in line and "goto" not in line:  # Label (e.g., L2:)
+                label = line.split(":")[0]
+                if label in referenced_labels:
+                    optimized_tac.insert(0, line)  # Retain labels
+                    print(f"[DEBUG] Retaining Label: {label}")
+                continue
+
+            if "goto" in line:  # Goto statement (e.g., if t1 goto L2)
+                parts = line.split()
+                if "if" in parts:  # Conditional goto
+                    condition_var = parts[1]  # Condition variable
+                    used_vars.add(condition_var)
+                    loop_dependent_vars.add(condition_var)
+                    print(f"[DEBUG] Adding Conditional Variable to Used Vars: {condition_var}")
+                target_label = parts[-1]
+                referenced_labels.add(target_label)
+                optimized_tac.insert(0, line)  # Retain the goto statement
+                print(f"[DEBUG] Retaining Goto Statement: {line}")
+                continue
+
+            if " = " in line:  # Assignment statement
+                var, expr = line.split(" = ", 1)
+                expr_vars = expr.split(" ")
+
+                # Mark variables as loop-dependent if they influence the loop
+                if any(part in loop_dependent_vars for part in expr_vars) or var in loop_dependent_vars:
+                    loop_dependent_vars.add(var)
+                    loop_dependent_vars.update(part for part in expr_vars if part.isidentifier())
+                    used_vars.add(var)
+                    used_vars.update(part for part in expr_vars if part.isidentifier())
+                    optimized_tac.insert(0, line)  # Retain assignment
+                    print(f"[DEBUG] Retaining Loop-Dependent Assignment: {line}")
+                    continue
+
+                # Retain assignments that are otherwise used
+                if var in used_vars or any(part in used_vars for part in expr_vars):
+                    used_vars.add(var)
+                    used_vars.update(part for part in expr_vars if part.isidentifier())
+                    optimized_tac.insert(0, line)  # Retain assignment
+                    print(f"[DEBUG] Retaining Relevant Assignment: {line}")
+                else:
+                    print(f"[DEBUG] Removing Unused Assignment: {line}")
+                continue
+
+            # Non-assignment lines (e.g., RETURN x)
+            for part in line.split():
+                if part.isidentifier():
+                    used_vars.add(part)
+                    print(f"[DEBUG] Adding Used Variable from Non-Assignment Line: {part}")
+            optimized_tac.insert(0, line)  # Retain the line
+
+        # Step 3: Ensure labels and control flow integrity
+        for label, pos in label_positions.items():
+            if label in referenced_labels and all(f"{label}:" not in line for line in optimized_tac):
+                # Insert label at its original position if missing
+                optimized_tac.insert(pos, f"{label}:")
+                print(f"[DEBUG] Reinserting Missing Label: {label}")
+
+        # Ensure "END" stays at the end and labels are not misplaced
+        end_index = len(optimized_tac)
+        for i, line in enumerate(optimized_tac):
+            if "END" in line:
+                end_index = i
+                break
+
+        # Place all misplaced labels before "END"
+        labels_to_move = [line for line in optimized_tac[end_index:] if ":" in line and "goto" not in line]
+        optimized_tac = [line for line in optimized_tac if line not in labels_to_move]
+        optimized_tac = optimized_tac[:end_index] + labels_to_move + optimized_tac[end_index:]
+
+        print("[DEBUG] Finished Dead Code Elimination.\n")
+        return optimized_tac
+
+
+    # Helper function to evaluate TAC expressions, used in constant folding and propagation
+    def evaluate_expression(self, expr_parts):
+        # Separate parts of the variable
+        if len(expr_parts) == 1:  # Single constant value
+            return int(expr_parts[0])  # Directly return the value
+        elif len(expr_parts) == 3:  # Binary operation
+            left = int(expr_parts[0])
+            operator = expr_parts[1]
+            right = int(expr_parts[2])
+
+            # Evaluate the expression
+            if operator == '+':
+                return left + right
+            elif operator == '-':
+                return left - right
+            elif operator == '*':
+                return left * right
+            elif operator == '/':
+                return left / right
+            elif operator == '%':
+                return left % right
+            else:
+                raise ValueError(f"Unsupported operator: {operator}")
+        else:
+            raise ValueError(f"Unexpected expression format: {expr_parts}")
+

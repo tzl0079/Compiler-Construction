@@ -31,7 +31,8 @@ class Parser:
         if self.current_token[1] != token_type or (token_value and self.current_token[0] != token_value):
             expected_value = token_value if token_value else token_type
             actual_value = repr(self.current_token[0]) if self.current_token else 'None'
-            raise SyntaxError(f"Expected {expected_value}, but got {actual_value} at line {self.current_token[2]}, column {self.current_token[3]}")
+            raise SyntaxError(f"Expected {expected_value}, but got {actual_value} \
+                              at line {self.current_token[2]}, column {self.current_token[3]}")
         
         self.next()
 
@@ -128,7 +129,6 @@ class Parser:
         
         if self.current_token[1] == 'IDENTIFIER':
             var_name = self.current_token[0]
-            # Ensure variable is declared in the correct scope
             # Only declare the variable in the current (function) scope if it doesn’t already exist
             if not self.symbol_table.lookup(var_name, current_scope_only=True):
                 self.symbol_table.declare_variable(var_name, var_type)
@@ -193,15 +193,15 @@ class Parser:
                 # Handling post-increment/decrement
                 elif self.tokens[self.pos + 1][1] in {'INCREMENT_OPERATOR', 'DECREMENT_OPERATOR'}:
                     var_name = self.current_token[0]
-                    self.next()  # Move past the identifier
+                    self.next()  
                     op_token = self.current_token
-                    self.next()  # Move past the increment or decrement operator
+                    self.next()  
                     self.expected_type('PUNCTUATION', ';')
                     return ('UnaryExpression', op_token[0], ('Variable', var_name))
         # Handling pre-increment/decrement
         elif self.current_token[1] in {'INCREMENT_OPERATOR', 'DECREMENT_OPERATOR'}:
             op_token = self.current_token
-            self.next()  # Move past the increment/decrement operator
+            self.next()  
             var_name = self.current_token[0]
             self.expected_type('IDENTIFIER')
             self.expected_type('PUNCTUATION', ';')
@@ -219,14 +219,14 @@ class Parser:
         self.expected_type('PUNCTUATION', ')') 
 
         block = self.parse_block()
-        temp_block = None
+        else_block = None
 
         # Handling else statement
         if self.current_token and self.current_token[0] == 'else':
             self.next() 
-            temp_block = self.parse_block()
+            else_block = self.parse_block()
 
-        return ('IfStatement', condition, block, temp_block)
+        return ('IfStatement', condition, block, else_block)
     
 
     # While-loop Parsing: while (condition) {statements}
@@ -264,13 +264,13 @@ class Parser:
         if self.current_token and self.current_token[0] == ';':
             self.next()
 
-        # Condition
+        # Conditional Statement
         condition = None
         if self.current_token and self.current_token[0] != ';':
             condition = self.parse_expression()
             self.next()
 
-        # Update (expression, e.g., i++)
+        # Update Statement (expression, e.g., i++)
         update = None
         if self.current_token and self.current_token[0] != ')':
             update = self.parse_expression()
@@ -313,6 +313,7 @@ class Parser:
         self.expected_type('PUNCTUATION', '{')
         statements = []
 
+        # Everything within brackets is considered inside the block
         while self.current_token and self.current_token[0] != '}':
             statement = self.parse_statement()
             if statement is not None:
@@ -327,28 +328,29 @@ class Parser:
 
 
     # Expression Parsing - ChatGPT helped me fill in some gaps here, mostly with helper functions
-    def parse_expression(self, priority = 0, require_semi = True):
+    def parse_expression(self, priority = 0):
         # Check for pre-increment or pre-decrement
         if self.current_token[0] in ('++', '--'):
             op_token = self.current_token
-            self.next()  # Move past the ++ or --
-            operand = self.parse_primaryExp()  # Parse the operand
+            self.next()  
+            operand = self.parse_primaryExp() 
             return ('UnaryExpression', op_token[0], operand)
 
         # If the expression is ID + '=', treat it as an assignment
         if self.current_token[1] == 'IDENTIFIER' and self.pos + 1 < len(self.tokens) \
                             and self.tokens[self.pos + 1][1] == 'ASSIGNMENT_OPERATOR':
             var_name = self.current_token[0]
-            self.next()  # Move past the identifier
+            self.next()  
             self.expected_type('ASSIGNMENT_OPERATOR', '=')
-            value_expr = self.parse_expression(priority)  # Parse the right-hand side of the assignment
+            value_expr = self.parse_expression(priority)  
             return ('Assignment', var_name, value_expr)
     
         # Handle non-assignment expressions
         left_expr = self.parse_primaryExp()
 
         # While the next token is an operator, parse the binary operation
-        while self.current_token and self.is_operator(self.current_token) and self.get_priority(self.current_token) > priority:
+        while self.current_token and self.is_operator(self.current_token) and \
+                            self.get_priority(self.current_token) > priority:
             op_token = self.current_token
             self.next()
             right_expr = self.parse_expression(self.get_priority(op_token))
@@ -362,8 +364,7 @@ class Parser:
     def parse_primaryExp(self):
         token = self.current_token
 
-        # Takes in Integers, Floats, Identifiers, and Parenthetic Operations
-        # Numeric literals (int, float, hex, binary, octal) 
+        # Takes in numeric literals (int, float, hex, binary, octal) 
         if token[1] in {'INTEGER_LITERAL', 'FLOATING_POINT_LIT', 'HEX_LITERAL', 'BINARY_LITERAL', 'OCTAL_LITERAL'}:
             self.next()
             # Determine the correct numeric type based on the token type
@@ -388,7 +389,7 @@ class Parser:
             # Check for postfix increment or decrement
             if self.current_token and self.current_token[0] in ('++', '--'):
                 op_token = self.current_token
-                self.next()  # Move past the ++ or --
+                self.next()  
                 return ('UnaryExpression', op_token[0], ('Variable', token[0]), 'postfix')
 
             if self.symbol_table.lookup(token[0]):
